@@ -18,6 +18,7 @@ async function retry(fn, times = 3) {
   }
 }
 
+// ---------- GitHub ----------
 async function fetchGitHubUser(accessToken) {
   const [userResp, emailsResp] = await Promise.all([
     fetch("https://api.github.com/user", {
@@ -48,6 +49,7 @@ async function fetchGitHubUser(accessToken) {
   };
 }
 
+// ---------- Google ----------
 async function fetchGoogleUser(accessToken) {
   const resp = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -66,7 +68,6 @@ async function fetchGoogleUser(accessToken) {
 }
 
 // ---------- 微信 ----------
-
 async function fetchWechatUser(accessToken, openid) {
   const resp = await fetch(
     `https://api.weixin.qq.com/sns/userinfo?access_token=${encodeURIComponent(accessToken)}&openid=${encodeURIComponent(openid)}&lang=zh_CN`
@@ -86,7 +87,6 @@ async function fetchWechatUser(accessToken, openid) {
 }
 
 // ---------- QQ ----------
-
 async function fetchQQOpenId(accessToken) {
   const resp = await fetch(
     `https://graph.qq.com/oauth2.0/me?access_token=${encodeURIComponent(accessToken)}&fmt=json`
@@ -96,7 +96,6 @@ async function fetchQQOpenId(accessToken) {
   if (data.error) throw new Error(`QQ openid error: ${data.error_description || data.error}`);
   return { openid: data.openid, unionid: data.unionid };
 }
-
 async function fetchQQUser(accessToken, appId, openid) {
   const resp = await fetch(
     `https://graph.qq.com/user/get_user_info?access_token=${encodeURIComponent(accessToken)}&oauth_consumer_key=${encodeURIComponent(appId)}&openid=${encodeURIComponent(openid)}`
