@@ -1,6 +1,6 @@
 import { GitHub, Google } from "arctic";
-import { WeChat } from "./wechat.js";
-import { QQ } from "./qq.js";
+import { WeChat } from "./auth.wechat.js";
+import { QQ } from "./auth.qq.js";
 import { nanoid } from "nanoid"
 import { createSession, sessionCookie } from "./session.js";
 
