@@ -35,7 +35,7 @@ export async function createSession(kv, jwtSecret, user) {
     "24h"
   );
 
-  await kv.put(`session:${token}`, JSON.stringify(user), {
+  await kv.put(`session:${token}`, "1", {
     expirationTtl: SESSION_TTL,
   });
 
