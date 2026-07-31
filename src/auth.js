@@ -115,7 +115,7 @@ const OAUTH_STATE_TTL = 600; // 10 分钟
  * 构建授权 URL（arctic 生成，state/PKCE 存入 KV）
  */
 export async function buildAuthUrl(provider, env, redirectUri) {
-  const state = nanoid(32);
+  const state = nanoid(32);// 生成一个随机的 state 值，用于验证 OAuth 回调中的 state 参数
   await env.USER_KV.put(`oauth:state:${state}`, provider, { expirationTtl: OAUTH_STATE_TTL });
 
   if (provider === "github") {
@@ -152,8 +152,8 @@ export async function buildAuthUrl(provider, env, redirectUri) {
  */
 export async function handleCallback(provider, request, env, redirectUri) {
   const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
+  const code = url.searchParams.get("code");//OAuth 回调 URL 中的授权码，由第三方在用户授权后通过 URL 参数传回
+  const state = url.searchParams.get("state");//OAuth 回调 URL 中的 state 参数，由第三方在用户授权后通过 URL 参数原样传回
   const oauthError = url.searchParams.get("error");
 
   if (oauthError) {
