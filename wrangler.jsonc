@@ -6,6 +6,12 @@
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
+	"observability": {
+		"logs": {
+			"enabled": true,
+			"invocation_logs": true
+		}
+	},
 	"vars": {
 		"GITHUB_CLIENT_ID": "",
 		"GITHUB_CLIENT_SECRET": "",
