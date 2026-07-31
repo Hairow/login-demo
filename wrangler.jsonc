@@ -11,6 +11,10 @@
 		"GITHUB_REDIRECT_URI": "http://localhost:8787/auth/github/callback",
 		"GOOGLE_CLIENT_ID": "",
 		"GOOGLE_REDIRECT_URI": "http://localhost:8787/auth/google/callback",
+		"WECHAT_APP_ID": "",
+		"WECHAT_APP_SECRET": "",
+		"QQ_APP_ID": "",
+		"QQ_APP_KEY": "",
 		"JWT_SECRET": ""
 	},
 	"assets": {

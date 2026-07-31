@@ -11,6 +11,10 @@ const PUBLIC_PATHS = new Set([
   "/auth/github/callback",
   "/auth/google",
   "/auth/google/callback",
+  "/auth/wechat",
+  "/auth/wechat/callback",
+  "/auth/qq",
+  "/auth/qq/callback",
   "/auth/logout",
   "/health"
 ]);
@@ -97,6 +101,43 @@ router.get("/auth/google", async (request, env) => {
 
 router.get("/auth/google/callback", (request, env) => {
   return handleCallback("google", request, env, `${baseUrl(request)}/auth/google/callback`);
+});
+
+// --- OAuth: 微信网站应用扫码登录 ---
+// 微信 OAuth 跳转示例：
+// https://open.weixin.qq.com/connect/qrconnect
+//   ?appid=APPID
+//   &redirect_uri=https://example.com/auth/wechat/callback
+//   &response_type=code
+//   &scope=snsapi_login
+//   &state=<random_32_chars>
+//   #wechat_redirect
+router.get("/auth/wechat", async (request, env) => {
+  const url = await buildAuthUrl("wechat", env, `${baseUrl(request)}/auth/wechat/callback`);
+  if (!url) return json({ error: "WeChat not configured" }, 500);
+  return Response.redirect(url, 302);
+});
+
+router.get("/auth/wechat/callback", (request, env) => {
+  return handleCallback("wechat", request, env, `${baseUrl(request)}/auth/wechat/callback`);
+});
+
+// --- OAuth: QQ互联 ---
+// QQ OAuth 跳转示例：
+// https://graph.qq.com/oauth2.0/authorize
+//   ?response_type=code
+//   &client_id=APPID
+//   &redirect_uri=https://example.com/auth/qq/callback
+//   &scope=get_user_info
+//   &state=<random_32_chars>
+router.get("/auth/qq", async (request, env) => {
+  const url = await buildAuthUrl("qq", env, `${baseUrl(request)}/auth/qq/callback`);
+  if (!url) return json({ error: "QQ not configured" }, 500);
+  return Response.redirect(url, 302);
+});
+
+router.get("/auth/qq/callback", (request, env) => {
+  return handleCallback("qq", request, env, `${baseUrl(request)}/auth/qq/callback`);
 });
 
 // --- 获取当前用户 ---
