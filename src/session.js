@@ -1,4 +1,4 @@
-import cookie from "cookie";
+import { parseCookie, stringifyCookie } from "cookie";
 import { signJWT, verifyJWT } from "./jwt.js";
 
 // ============================================================
@@ -6,15 +6,17 @@ import { signJWT, verifyJWT } from "./jwt.js";
 // ============================================================
 
 const SESSION_TTL = 60 * 60 * 24; // 24 小时
-const COOKIE_NAME = "session_token";
+const COOKIE_NAME = "session_id";
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: true,
-  sameSite: "lax",
-  path: "/",
-  maxAge: SESSION_TTL,
-};
+function buildCookieOptions(request) {
+  return {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_TTL,
+  };
+}
 
 /**
  * 创建 session，写入 KV 并返回 JWT token
@@ -45,7 +47,7 @@ export async function createSession(kv, jwtSecret, user) {
  */
 function getCookie(request, name) {
   const header = request.headers.get("Cookie") || "";
-  return cookie.parse(header)[name] || null;
+  return parseCookie(header)[name] || null;
 }
 
 /**
@@ -79,15 +81,15 @@ export async function destroySession(kv, request) {
 /**
  * 登录成功：设置 session cookie
  */
-export function sessionCookie(token) {
-  return cookie.serialize(COOKIE_NAME, token, COOKIE_OPTIONS);
+export function sessionCookie(token, request) {
+  return stringifyCookie(COOKIE_NAME, token, buildCookieOptions(request));
 }
 
 /**
  * 登出：清除 session cookie
  */
-export function clearCookie() {
-  return cookie.serialize(COOKIE_NAME, "", { ...COOKIE_OPTIONS, maxAge: 0 });
+export function clearCookie(request) {
+  return stringifyCookie(COOKIE_NAME, "", { ...buildCookieOptions(request), maxAge: 0 });
 }
 
 /**
@@ -99,7 +101,7 @@ export async function buildLogoutResponse(kv, request) {
     status: 302,
     headers: {
       Location: "/",
-      "Set-Cookie": clearCookie(),
+      "Set-Cookie": clearCookie(request),
     },
   });
 }

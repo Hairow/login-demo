@@ -248,7 +248,7 @@ export async function handleCallback(provider, request, env, redirectUri) {
     status: 302,
     headers: {
       Location: "/",
-      "Set-Cookie": sessionCookie(token),
+      "Set-Cookie": sessionCookie(token, request),
     },
   });
 }
