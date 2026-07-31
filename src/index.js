@@ -1,9 +1,5 @@
-import {
-  buildAuthUrl,
-  handleCallback,
-  buildLogoutResponse,
-  getCurrentUser,
-} from "./auth.js";
+import { buildAuthUrl, handleCallback } from "./auth.js";
+import { getCurrentUser, buildLogoutResponse } from "./session.js";
 
 // ---------- 工具函数 ----------
 
