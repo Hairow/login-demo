@@ -15,7 +15,7 @@ const PUBLIC_PATHS = new Set([
   "/auth/wechat/callback",
   "/auth/qq",
   "/auth/qq/callback",
-  "/auth/logout",
+  "/logout",
   "/health"
 ]);
 
@@ -57,12 +57,6 @@ router.get("/", (request, env) => {
   return request.user
     ? Response.redirect("/user.html", 302)
     : Response.redirect("/index.html", 302);
-});
-
-// --- 用户信息页（需登录） ---
-router.get("/user", (request) => {
-  const { username, name, email, avatar, provider } = request.user;
-  return json({ username, name, email, avatar, provider });
 });
 
 // --- OAuth: GitHub ---
@@ -141,13 +135,13 @@ router.get("/auth/qq/callback", (request, env) => {
 });
 
 // --- 获取当前用户 ---
-router.get("/auth/user", (request) => {
+router.get("/user", (request) => {
   const { username, name, email, avatar, provider } = request.user;
   return json({ username, name, email, avatar, provider });
 });
 
 // --- 登出 ---
-router.get("/auth/logout", (request, env) => {
+router.get("/logout", (request, env) => {
   return buildLogoutResponse(env.USER_KV, request);
 });
 

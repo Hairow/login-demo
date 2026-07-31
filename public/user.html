@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>个人中心 — Login Demo</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -30,74 +37,135 @@
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
     }
 
-    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
 
     .subtitle {
-      font-size: 14px; color: #999; margin-bottom: 36px;
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 36px;
     }
 
     .avatar {
-      width: 80px; height: 80px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
-      border: 3px solid rgba(255,255,255,0.2);
+      border: 3px solid rgba(255, 255, 255, 0.2);
       object-fit: cover;
     }
+
     .avatar-placeholder {
-      width: 80px; height: 80px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       background: linear-gradient(135deg, #667eea, #764ba2);
       display: inline-flex;
-      align-items: center; justify-content: center;
-      font-size: 32px; font-weight: 700; color: #fff;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
     }
 
     .info-grid {
-      display: flex; flex-direction: column;
-      gap: 12px; margin: 24px 0; width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 24px 0;
+      width: 100%;
     }
+
     .info-row {
-      display: flex; justify-content: space-between;
+      display: flex;
+      justify-content: space-between;
       padding: 10px 16px;
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.04);
       border-radius: 10px;
     }
-    .info-label { font-size: 13px; color: #888; }
-    .info-value { font-size: 14px; font-weight: 500; word-break: break-all; }
+
+    .info-label {
+      font-size: 13px;
+      color: #888;
+    }
+
+    .info-value {
+      font-size: 14px;
+      font-weight: 500;
+      word-break: break-all;
+    }
 
     .provider-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 12px; border-radius: 20px;
-      font-size: 12px; font-weight: 600; margin-bottom: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
     }
-    .badge-github { background: #24292e; color: #fff; }
-    .badge-google { background: #4285f4; color: #fff; }
-    .badge-wechat { background: #07C160; color: #fff; }
-    .badge-qq     { background: #12B7F5; color: #fff; }
+
+    .badge-github {
+      background: #24292e;
+      color: #fff;
+    }
+
+    .badge-google {
+      background: #4285f4;
+      color: #fff;
+    }
+
+    .badge-wechat {
+      background: #07C160;
+      color: #fff;
+    }
+
+    .badge-qq {
+      background: #12B7F5;
+      color: #fff;
+    }
 
     .btn-logout {
       padding: 10px 36px;
-      border: 1px solid rgba(255,255,255,0.25);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       border-radius: 10px;
-      background: transparent; color: #e0e0e0;
-      font-size: 14px; cursor: pointer;
+      background: transparent;
+      color: #e0e0e0;
+      font-size: 14px;
+      cursor: pointer;
       text-decoration: none;
       transition: background 0.15s;
     }
-    .btn-logout:hover { background: rgba(255,255,255,0.08); }
+
+    .btn-logout:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
 
     .spinner {
-      width: 36px; height: 36px;
-      border: 3px solid rgba(255,255,255,0.15);
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, 0.15);
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
       margin: 20px auto;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .hidden { display: none !important; }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
+
 <body>
   <div class="card">
     <h1>个人中心</h1>
@@ -124,7 +192,7 @@
       </div>
       <span class="provider-badge" id="provider-badge"></span>
       <br />
-      <a class="btn-logout" href="/auth/logout">退出登录</a>
+      <a class="btn-logout" href="/logout">退出登录</a>
     </div>
 
     <!-- 未登录时自动跳回首页 -->
@@ -141,7 +209,7 @@
       const unauthenticated = document.getElementById("unauthenticated");
 
       try {
-        const resp = await fetch("/auth/user");
+        const resp = await fetch("/user");
         if (!resp.ok) throw new Error("unauthorized");
 
         const user = await resp.json();
@@ -156,11 +224,11 @@
 
     function renderProfile(user) {
       document.getElementById("username").textContent = user.username || "-";
-      document.getElementById("name").textContent     = user.name || "-";
-      document.getElementById("email").textContent    = user.email || "-";
+      document.getElementById("name").textContent = user.name || "-";
+      document.getElementById("email").textContent = user.email || "-";
 
       const avatarImg = document.getElementById("avatar-img");
-      const avatarPh  = document.getElementById("avatar-ph");
+      const avatarPh = document.getElementById("avatar-ph");
       if (user.avatar) {
         avatarImg.src = user.avatar;
         avatarImg.classList.remove("hidden");
@@ -190,4 +258,5 @@
     init();
   </script>
 </body>
+
 </html>
