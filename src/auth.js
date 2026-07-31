@@ -8,6 +8,16 @@ import { createSession, sessionCookie } from "./session.js";
 // OAuth 2.0 用户信息获取（arctic 不处理此步）
 // ============================================================
 
+async function retry(fn, times = 3) {
+  for (let i = 0; i < times; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === times - 1) throw err;
+    }
+  }
+}
+
 async function fetchGitHubUser(accessToken) {
   const [userResp, emailsResp] = await Promise.all([
     fetch("https://api.github.com/user", {
@@ -220,15 +230,15 @@ export async function handleCallback(provider, request, env, redirectUri) {
   let user;
   try {
     if (provider === "github") {
-      user = await fetchGitHubUser(tokens.accessToken());
+      user = await retry(() => fetchGitHubUser(tokens.accessToken()));
     } else if (provider === "google") {
-      user = await fetchGoogleUser(tokens.accessToken());
+      user = await retry(() => fetchGoogleUser(tokens.accessToken()));
     } else if (provider === "wechat") {
-      user = await fetchWechatUser(tokens.accessToken(), tokens.openid());
+      user = await retry(() => fetchWechatUser(tokens.accessToken(), tokens.openid()));
     } else if (provider === "qq") {
       // QQ 需要先拿 openid，再取用户信息
-      const { openid, unionid } = await fetchQQOpenId(tokens.accessToken());
-      user = await fetchQQUser(tokens.accessToken(), env.QQ_APP_ID, openid);
+      const { openid, unionid } = await retry(() => fetchQQOpenId(tokens.accessToken()));
+      user = await retry(() => fetchQQUser(tokens.accessToken(), env.QQ_APP_ID, openid));
       // 合并 unionid（fetchQQOpenId 返回的 unionid 可能更新）
       if (unionid) user.providerId = unionid;
     } else {
