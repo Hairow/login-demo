@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>个人中心 — Login Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #e0e0e0;
+      padding: 20px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+    }
+
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+
+    .subtitle {
+      font-size: 14px; color: #999; margin-bottom: 36px;
+    }
+
+    .avatar {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.2);
+      object-fit: cover;
+    }
+    .avatar-placeholder {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      font-size: 32px; font-weight: 700; color: #fff;
+    }
+
+    .info-grid {
+      display: flex; flex-direction: column;
+      gap: 12px; margin: 24px 0; width: 100%;
+    }
+    .info-row {
+      display: flex; justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 10px;
+    }
+    .info-label { font-size: 13px; color: #888; }
+    .info-value { font-size: 14px; font-weight: 500; word-break: break-all; }
+
+    .provider-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600; margin-bottom: 16px;
+    }
+    .badge-github { background: #24292e; color: #fff; }
+    .badge-google { background: #4285f4; color: #fff; }
+
+    .btn-logout {
+      padding: 10px 36px;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 10px;
+      background: transparent; color: #e0e0e0;
+      font-size: 14px; cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .btn-logout:hover { background: rgba(255,255,255,0.08); }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>个人中心</h1>
+    <p class="subtitle">已通过 OAuth 2.0 安全登录</p>
+
+    <div id="loading" class="spinner"></div>
+
+    <div id="profile" class="hidden">
+      <img id="avatar-img" class="avatar hidden" alt="avatar" />
+      <div id="avatar-ph" class="avatar-placeholder hidden"></div>
+      <div class="info-grid">
+        <div class="info-row">
+          <span class="info-label">用户名</span>
+          <span class="info-value" id="username"></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">姓名</span>
+          <span class="info-value" id="name"></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">邮箱</span>
+          <span class="info-value" id="email"></span>
+        </div>
+      </div>
+      <span class="provider-badge" id="provider-badge"></span>
+      <br />
+      <a class="btn-logout" href="/auth/logout">退出登录</a>
+    </div>
+
+    <!-- 未登录时自动跳回首页 -->
+    <div id="unauthenticated" class="hidden">
+      <p style="color:#999; margin: 20px 0;">请先登录</p>
+      <a class="btn-logout" href="/">返回首页</a>
+    </div>
+  </div>
+
+  <script>
+    async function init() {
+      const loading = document.getElementById("loading");
+      const profile = document.getElementById("profile");
+      const unauthenticated = document.getElementById("unauthenticated");
+
+      try {
+        const resp = await fetch("/auth/user");
+        if (!resp.ok) throw new Error("unauthorized");
+
+        const user = await resp.json();
+        renderProfile(user);
+        loading.classList.add("hidden");
+        profile.classList.remove("hidden");
+      } catch {
+        loading.classList.add("hidden");
+        unauthenticated.classList.remove("hidden");
+      }
+    }
+
+    function renderProfile(user) {
+      document.getElementById("username").textContent = user.username || "-";
+      document.getElementById("name").textContent     = user.name || "-";
+      document.getElementById("email").textContent    = user.email || "-";
+
+      const avatarImg = document.getElementById("avatar-img");
+      const avatarPh  = document.getElementById("avatar-ph");
+      if (user.avatar) {
+        avatarImg.src = user.avatar;
+        avatarImg.classList.remove("hidden");
+        avatarPh.classList.add("hidden");
+      } else {
+        avatarImg.classList.add("hidden");
+        avatarPh.textContent = (user.name || "U")[0].toUpperCase();
+        avatarPh.classList.remove("hidden");
+      }
+
+      const badge = document.getElementById("provider-badge");
+      if (user.provider === "github") {
+        badge.textContent = "GitHub";
+        badge.className = "provider-badge badge-github";
+      } else if (user.provider === "google") {
+        badge.textContent = "Google";
+        badge.className = "provider-badge badge-google";
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

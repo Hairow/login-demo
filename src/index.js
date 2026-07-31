@@ -12,7 +12,7 @@ const PUBLIC_PATHS = new Set([
   "/auth/google",
   "/auth/google/callback",
   "/auth/logout",
-  "/health",
+  "/health"
 ]);
 
 // ============================================================
@@ -20,13 +20,15 @@ const PUBLIC_PATHS = new Set([
 // ============================================================
 
 async function authGuard(request, env) {
+  // 白名单路径直接放行（登录页、回调、健康检查等）
   if (PUBLIC_PATHS.has(new URL(request.url).pathname)) return;
 
   const user = await getCurrentUser(request, env);
+  // 未登录 → 重定向到首页
   if (!user) {
     return Response.redirect("/index.html", 302);
   }
-  // 将用户挂到 request 上，后续 handler 可直接使用
+  // 已登录 → 将用户信息挂载到 request，放行
   request.user = user;
 }
 
@@ -47,8 +49,9 @@ const router = Router();
 
 // --- 首页 ---
 router.get("/", (request, env) => {
+  // 已登录 → 个人中心页面；未登录 → 登录页
   return request.user
-    ? Response.redirect("/user", 302)
+    ? Response.redirect("/user.html", 302)
     : Response.redirect("/index.html", 302);
 });
 
@@ -59,6 +62,13 @@ router.get("/user", (request) => {
 });
 
 // --- OAuth: GitHub ---
+// GitHub OAuth 跳转示例：
+// https://github.com/login/oauth/authorize
+//   ?client_id=xxx
+//   &redirect_uri=https://example.com/auth/github/callback
+//   &response_type=code
+//   &scope=read:user+user:email
+//   &state=<random_32_chars>
 router.get("/auth/github", async (request, env) => {
   const url = await buildAuthUrl("github", env, `${baseUrl(request)}/auth/github/callback`);
   if (!url) return json({ error: "GitHub not configured" }, 500);
@@ -70,6 +80,15 @@ router.get("/auth/github/callback", (request, env) => {
 });
 
 // --- OAuth: Google ---
+// Google OAuth 跳转示例：
+// https://accounts.google.com/o/oauth2/v2/auth
+//   ?client_id=xxx.apps.googleusercontent.com
+//   &redirect_uri=https://example.com/auth/google/callback
+//   &response_type=code
+//   &scope=openid+email+profile
+//   &state=<random_32_chars>
+//   &code_challenge=<PKCE_challenge>
+//   &code_challenge_method=S256
 router.get("/auth/google", async (request, env) => {
   const url = await buildAuthUrl("google", env, `${baseUrl(request)}/auth/google/callback`);
   if (!url) return json({ error: "Google not configured" }, 500);
@@ -105,7 +124,8 @@ export default {
   async fetch(request, env, ctx) {
     // 先执行鉴权中间件
     const redirect = await authGuard(request, env);
-    if (redirect) return redirect;
+    // 如果返回响应对象，则直接返回
+    if (redirect instanceof Response) return redirect;
 
     // 路由分发
     return router.fetch(request, env, ctx).catch((e) => {
