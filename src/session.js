@@ -19,10 +19,9 @@ export async function createSession(kv, jwtSecret, user) {
       email: user.email,
       avatar: user.avatar,
       provider: user.provider,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + SESSION_TTL,
     },
-    jwtSecret
+    jwtSecret,
+    "24h"
   );
 
   // KV 备份，支持主动失效
