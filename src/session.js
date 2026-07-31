@@ -1,4 +1,4 @@
-import { parseCookie, stringifyCookie } from "cookie";
+import { parseCookie, stringifySetCookie } from "cookie";
 import { SignJWT, jwtVerify } from "jose";
 
 // ============================================================
@@ -11,7 +11,7 @@ const COOKIE_NAME = "Authorization‌";
 function buildCookieOptions(request) {
   return {
     httpOnly: true,
-    secure: true,
+    secure: new URL(request.url).protocol === "https:",
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL,
@@ -91,14 +91,14 @@ export async function destroySession(kv, request) {
  * 登录成功：设置 session cookie
  */
 export function sessionCookie(token, request) {
-  return stringifyCookie(COOKIE_NAME, token, buildCookieOptions(request));
+  return stringifySetCookie({ name: COOKIE_NAME, value: token, ...buildCookieOptions(request) });
 }
 
 /**
  * 登出：清除 session cookie
  */
 export function clearCookie(request) {
-  return stringifyCookie(COOKIE_NAME, "", { ...buildCookieOptions(request), maxAge: 0 });
+  return stringifySetCookie({ name: COOKIE_NAME, value: "", ...buildCookieOptions(request), maxAge: 0 });
 }
 
 /**
