@@ -6,6 +6,17 @@
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
+	"vars": {
+		"GITHUB_CLIENT_ID": "",
+		"GITHUB_REDIRECT_URI": "http://localhost:8787/auth/github/callback",
+		"GOOGLE_CLIENT_ID": "",
+		"GOOGLE_REDIRECT_URI": "http://localhost:8787/auth/google/callback",
+		"JWT_SECRET": ""
+	},
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS"
+	},
 	"kv_namespaces": [
 		{
 			"binding": "USER_KV",

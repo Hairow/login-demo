@@ -1,0 +1,13 @@
+# 复制此文件为 .dev.vars 并填入真实值
+# .dev.vars 已在 .gitignore 中，不会被提交
+
+# GitHub OAuth App 凭据 (https://github.com/settings/developers)
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# Google OAuth 凭据 (https://console.cloud.google.com/apis/credentials)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# JWT 签名密钥（请使用随机字符串）
+JWT_SECRET=your_jwt_secret_at_least_32_chars_long
