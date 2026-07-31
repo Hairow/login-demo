@@ -14,7 +14,10 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "arctic": "^3.7.0",
     "cookie": "^2.0.1",
-    "jose": "^6.2.5"
+    "itty-router": "^5.0.24",
+    "jose": "^6.2.5",
+    "nanoid": "^6.0.0"
   }
 }

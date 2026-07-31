@@ -1,11 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 
 // ============================================================
-// JWT（基于 jose 包）
+// JWT（基于 jose）
 // ============================================================
 
 /**
- * 使用 HMAC-SHA256 签名 JWT
+ * HMAC-SHA256 签名 JWT
  */
 export async function signJWT(payload, secret, ttl = "24h") {
   return new SignJWT(payload)
@@ -16,7 +16,7 @@ export async function signJWT(payload, secret, ttl = "24h") {
 }
 
 /**
- * 验证并解析 JWT，失败返回 null
+ * 验证 JWT，失败返回 null
  */
 export async function verifyJWT(token, secret) {
   try {
@@ -25,20 +25,4 @@ export async function verifyJWT(token, secret) {
   } catch {
     return null;
   }
-}
-
-// ============================================================
-// 随机字符串（用于 OAuth CSRF state）
-// ============================================================
-
-const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-export function randomString(length = 32) {
-  const bytes = new Uint8Array(length);
-  crypto.getRandomValues(bytes);
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    result += CHARS[bytes[i] % CHARS.length];
-  }
-  return result;
 }
