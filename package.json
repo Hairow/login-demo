@@ -1,0 +1,16 @@
+{
+  "name": "login-demo",
+  "version": "1.0.0",
+  "description": "A simple Cloudflare Worker login demo",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

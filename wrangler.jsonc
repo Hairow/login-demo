@@ -1,0 +1,16 @@
+{
+	"$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+	"name": "login-demo",
+	"main": "src/index.js",
+	"compatibility_date": "2025-01-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"kv_namespaces": [
+		{
+			"binding": "USER_KV",
+			"id": "6438584b3ea545c6a1ef2a4ccb9be26b",
+			"remote": true
+		}
+	]
+}
