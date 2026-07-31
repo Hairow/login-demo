@@ -1,4 +1,6 @@
 import { GitHub, Google } from "arctic";
+import { WeChat } from "./wechat.js";
+import { QQ } from "./qq.js";
 import { nanoid } from "nanoid"
 import { createSession, sessionCookie } from "./session.js";
 
@@ -131,40 +133,15 @@ export async function buildAuthUrl(provider, env, redirectUri) {
   }
 
   // ---------- 微信网站应用扫码登录 ----------
-  // https://open.weixin.qq.com/connect/qrconnect
-  //   ?appid=APPID
-  //   &redirect_uri=URI（已编码）
-  //   &response_type=code
-  //   &scope=snsapi_login
-  //   &state=STATE
-  //   #wechat_redirect（必须，微信内嵌 JS 用来关闭弹窗）
   if (provider === "wechat") {
-    const params = new URLSearchParams({
-      appid: env.WECHAT_APP_ID,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: "snsapi_login",
-      state,
-    });
-    return `https://open.weixin.qq.com/connect/qrconnect?${params.toString()}#wechat_redirect`;
+    const wechat = new WeChat(env.WECHAT_APP_ID, env.WECHAT_APP_SECRET, redirectUri);
+    return wechat.createAuthorizationURL(state).toString();
   }
 
-  // ---------- QQ互联网站应用登录 ----------
-  // https://graph.qq.com/oauth2.0/authorize
-  //   ?response_type=code
-  //   &client_id=APPID
-  //   &redirect_uri=URI（已编码）
-  //   &scope=get_user_info
-  //   &state=STATE
+  // ---------- QQ互联 ----------
   if (provider === "qq") {
-    const params = new URLSearchParams({
-      response_type: "code",
-      client_id: env.QQ_APP_ID,
-      redirect_uri: redirectUri,
-      scope: "get_user_info",
-      state,
-    });
-    return `https://graph.qq.com/oauth2.0/authorize?${params.toString()}`;
+    const qq = new QQ(env.QQ_APP_ID, env.QQ_APP_KEY, redirectUri);
+    return qq.createAuthorizationURL(state).toString();
   }
 
   return null;
@@ -218,36 +195,11 @@ export async function handleCallback(provider, request, env, redirectUri) {
       const google = new Google(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, redirectUri);
       tokens = await google.validateAuthorizationCode(code, codeVerifier);
     } else if (provider === "wechat") {
-      // 微信 token 交换：纯 GET 请求，响应为 JSON
-      const tokenUrl = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${env.WECHAT_APP_ID}&secret=${env.WECHAT_APP_SECRET}&code=${code}&grant_type=authorization_code`;
-      const resp = await fetch(tokenUrl);
-      const data = await resp.json();
-      if (data.errcode) {
-        return new Response(JSON.stringify({ error: "WeChat token exchange failed", detail: data.errmsg }), {
-          status: 502, headers: { "Content-Type": "application/json" },
-        });
-      }
-      // 包装为统一格式：{ accessToken, openid, unionid }
-      tokens = { accessToken: data.access_token, openid: data.openid, unionid: data.unionid };
+      const wechat = new WeChat(env.WECHAT_APP_ID, env.WECHAT_APP_SECRET, redirectUri);
+      tokens = await wechat.validateAuthorizationCode(code);
     } else if (provider === "qq") {
-      // QQ token 交换：GET 请求，fmt=json 确保返回 JSON（否则默认是 callback）
-      const tokenUrl = `https://graph.qq.com/oauth2.0/token?grant_type=authorization_code&client_id=${env.QQ_APP_ID}&client_secret=${env.QQ_APP_KEY}&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}&fmt=json`;
-      const resp = await fetch(tokenUrl);
-      const body = await resp.text();
-      let data;
-      try {
-        data = JSON.parse(body);
-      } catch {
-        return new Response(JSON.stringify({ error: "QQ token response parse failed", detail: body }), {
-          status: 502, headers: { "Content-Type": "application/json" },
-        });
-      }
-      if (data.error) {
-        return new Response(JSON.stringify({ error: "QQ token exchange failed", detail: data.error_description }), {
-          status: 502, headers: { "Content-Type": "application/json" },
-        });
-      }
-      tokens = { accessToken: data.access_token };
+      const qq = new QQ(env.QQ_APP_ID, env.QQ_APP_KEY, redirectUri);
+      tokens = await qq.validateAuthorizationCode(code);
     } else {
       return new Response(JSON.stringify({ error: "unsupported provider" }), {
         status: 400,
@@ -272,11 +224,11 @@ export async function handleCallback(provider, request, env, redirectUri) {
     } else if (provider === "google") {
       user = await fetchGoogleUser(tokens.accessToken());
     } else if (provider === "wechat") {
-      user = await fetchWechatUser(tokens.accessToken, tokens.openid);
+      user = await fetchWechatUser(tokens.accessToken(), tokens.openid());
     } else if (provider === "qq") {
       // QQ 需要先拿 openid，再取用户信息
-      const { openid, unionid } = await fetchQQOpenId(tokens.accessToken);
-      user = await fetchQQUser(tokens.accessToken, env.QQ_APP_ID, openid);
+      const { openid, unionid } = await fetchQQOpenId(tokens.accessToken());
+      user = await fetchQQUser(tokens.accessToken(), env.QQ_APP_ID, openid);
       // 合并 unionid（fetchQQOpenId 返回的 unionid 可能更新）
       if (unionid) user.providerId = unionid;
     } else {
