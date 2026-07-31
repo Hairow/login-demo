@@ -1,5 +1,5 @@
 import { parseCookie, stringifyCookie } from "cookie";
-import { signJWT, verifyJWT } from "./jwt.js";
+import { SignJWT, jwtVerify } from "jose";
 
 // ============================================================
 // Session 生命周期
@@ -21,19 +21,23 @@ function buildCookieOptions(request) {
 /**
  * 创建 session，写入 KV 并返回 JWT token
  */
+function encodeSecret(secret) {
+  return new TextEncoder().encode(secret);
+}
+
 export async function createSession(kv, jwtSecret, user) {
-  const token = await signJWT(
-    {
-      sub: `${user.provider}:${user.providerId}`,
-      username: user.username,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      provider: user.provider,
-    },
-    jwtSecret,
-    "24h"
-  );
+  const token = await new SignJWT({
+    sub: `${user.provider}:${user.providerId}`,
+    username: user.username,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar,
+    provider: user.provider,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(SESSION_TTL)
+    .sign(encodeSecret(jwtSecret));
 
   await kv.put(`session:${token}`, "1", {
     expirationTtl: SESSION_TTL,
@@ -58,8 +62,13 @@ export async function getCurrentUser(request, env) {
   if (!token) return null;
 
   // 1. JWT 校验
-  const payload = await verifyJWT(token, env.JWT_SECRET);
-  if (!payload) return null;
+  let payload;
+  try {
+    const result = await jwtVerify(token, encodeSecret(env.JWT_SECRET));
+    payload = result.payload;
+  } catch {
+    return null;
+  }
 
   // 2. KV 校验（支持主动失效）
   const session = await env.USER_KV.get(`session:${token}`);
