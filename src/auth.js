@@ -117,6 +117,7 @@ export async function handleCallback(provider, request, env, redirectUri) {
   let tokens;
   try {
     if (provider === "github") {
+      // 使用 github 验证 token
       const github = new GitHub(env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET, redirectUri);
       tokens = await github.validateAuthorizationCode(code);
     } else if (provider === "google") {
@@ -128,7 +129,7 @@ export async function handleCallback(provider, request, env, redirectUri) {
         });
       }
       await env.USER_KV.delete(`oauth:pkce:${state}`);
-
+      // 使用 google 验证 token
       const google = new Google(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, redirectUri);
       tokens = await google.validateAuthorizationCode(code, codeVerifier);
     } else {
@@ -150,9 +151,13 @@ export async function handleCallback(provider, request, env, redirectUri) {
   // 获取用户信息
   let user;
   try {
-    user = provider === "github"
-      ? await fetchGitHubUser(tokens.accessToken())
-      : await fetchGoogleUser(tokens.accessToken());
+    if (provider === "github") {
+      user = await fetchGitHubUser(tokens.accessToken());
+    } else if (provider === "google") {
+      user = await fetchGoogleUser(tokens.accessToken());
+    } else {
+      throw new Error(`unsupported provider: ${provider}`);
+    }
   } catch (err) {
     return new Response(JSON.stringify({ error: "failed to fetch user", detail: err.message }), {
       status: 502,
