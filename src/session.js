@@ -1,3 +1,4 @@
+import cookie from "cookie";
 import { signJWT, verifyJWT } from "./jwt.js";
 
 // ============================================================
@@ -6,6 +7,14 @@ import { signJWT, verifyJWT } from "./jwt.js";
 
 const SESSION_TTL = 60 * 60 * 24; // 24 小时
 const COOKIE_NAME = "session_token";
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: SESSION_TTL,
+};
 
 /**
  * 创建 session，写入 KV 并返回 JWT token
@@ -24,7 +33,6 @@ export async function createSession(kv, jwtSecret, user) {
     "24h"
   );
 
-  // KV 备份，支持主动失效
   await kv.put(`session:${token}`, JSON.stringify(user), {
     expirationTtl: SESSION_TTL,
   });
@@ -33,14 +41,19 @@ export async function createSession(kv, jwtSecret, user) {
 }
 
 /**
+ * 从请求中读取指定 cookie 值
+ */
+function getCookie(request, name) {
+  const header = request.headers.get("Cookie") || "";
+  return cookie.parse(header)[name] || null;
+}
+
+/**
  * 从请求 Cookie 中解析当前用户，未登录返回 null
  */
 export async function getCurrentUser(request, env) {
-  const cookie = request.headers.get("Cookie") || "";
-  const match = cookie.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
-  if (!match) return null;
-
-  const token = match[1];
+  const token = getCookie(request, COOKIE_NAME);
+  if (!token) return null;
 
   // 1. JWT 校验
   const payload = await verifyJWT(token, env.JWT_SECRET);
@@ -57,32 +70,24 @@ export async function getCurrentUser(request, env) {
  * 清除 session（从 KV 删除）
  */
 export async function destroySession(kv, request) {
-  const cookie = request.headers.get("Cookie") || "";
-  const match = cookie.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
-  if (match) {
-    await kv.delete(`session:${match[1]}`);
+  const token = getCookie(request, COOKIE_NAME);
+  if (token) {
+    await kv.delete(`session:${token}`);
   }
-}
-
-/**
- * 构建 set-cookie header 值
- */
-function cookieHeader(value, maxAge) {
-  return `${COOKIE_NAME}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
 }
 
 /**
  * 登录成功：设置 session cookie
  */
 export function sessionCookie(token) {
-  return cookieHeader(token, SESSION_TTL);
+  return cookie.serialize(COOKIE_NAME, token, COOKIE_OPTIONS);
 }
 
 /**
  * 登出：清除 session cookie
  */
 export function clearCookie() {
-  return cookieHeader("", 0);
+  return cookie.serialize(COOKIE_NAME, "", { ...COOKIE_OPTIONS, maxAge: 0 });
 }
 
 /**
