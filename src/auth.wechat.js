@@ -27,8 +27,8 @@ export class WeChat {
     const params = new URLSearchParams({
       appid: this.clientId,
       redirect_uri: this.redirectUri,
-      response_type: "code",
-      scope: "snsapi_login",
+      response_type: "code",// 关键：必须是 code
+      scope: "snsapi_login",// 关键：必须是 snsapi_login
       state,
     });
     return new URL(`${AUTHORIZE_ENDPOINT}?${params.toString()}#wechat_redirect`);

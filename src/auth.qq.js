@@ -29,7 +29,7 @@ export class QQ {
       response_type: "code",
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
-      scope: "get_user_info",
+      scope: "get_user_info",// 关键：必须是 get_user_info
       state,
     });
     return new URL(`${AUTHORIZE_ENDPOINT}?${params.toString()}`);
