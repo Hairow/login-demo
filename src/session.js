@@ -6,7 +6,7 @@ import { signJWT, verifyJWT } from "./jwt.js";
 // ============================================================
 
 const SESSION_TTL = 60 * 60 * 24; // 24 小时
-const COOKIE_NAME = "session_id";
+const COOKIE_NAME = "Authorization‌";
 
 function buildCookieOptions(request) {
   return {
