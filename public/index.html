@@ -296,7 +296,7 @@
       loading.classList.remove("hidden");
 
       try {
-        const resp = await fetch("/user");
+        const resp = await fetch("/api/user");
         if (resp.ok) {
           const user = await resp.json();
           showProfile(user);

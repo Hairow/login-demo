@@ -209,7 +209,7 @@
       const unauthenticated = document.getElementById("unauthenticated");
 
       try {
-        const resp = await fetch("/user");
+        const resp = await fetch("/api/user");
         if (!resp.ok) throw new Error("unauthorized");
 
         const user = await resp.json();

@@ -19,23 +19,31 @@ const PUBLIC_PATHS = new Set([
   "/health"
 ]);
 
+// 路由自行处理的路径：走完整鉴权（设 request.user），但不拦截
+const THROUGH_PATHS = new Set(["/"]);
+
+// API 路径前缀：未登录时返回 401
+const API_PREFIXES = ["/api"];
+
 // ============================================================
-// 鉴权中间件：非公开路由未登录 -> 302 /index.html
+// 鉴权中间件
 // ============================================================
 
 async function authGuard(request, env) {
   const url = new URL(request.url);
-  // 白名单路径直接放行（登录页、回调、健康检查等）
+  // 白名单路径直接放行
   if (PUBLIC_PATHS.has(url.pathname)) return;
 
   const user = await getCurrentUser(request, env);
   if (!user) {
-    // 只有页面请求才重定向到登录页，接口/静态资源直接 401
-    const isPage = !url.pathname.includes(".") || url.pathname.endsWith(".html");
-    if (isPage) {
-      return Response.redirect(new URL("/index.html", request.url).href, 302);
+    // 路由自行处理的路径：放行（user 为 undefined）
+    if (THROUGH_PATHS.has(url.pathname)) return;
+    // API 接口 → 401
+    if (API_PREFIXES.some((p) => url.pathname.startsWith(p))) {
+      return new Response(null, { status: 401 });
     }
-    return new Response(null, { status: 401 });
+    // 其他 → 404
+    return new Response(null, { status: 404 });
   }
   // 已登录 → 将用户信息挂载到 request，放行
   request.user = user;
@@ -60,7 +68,7 @@ const router = Router();
 router.get("/", (request, env) => {
   // 已登录 → 个人中心页面；未登录 → 登录页
   return request.user
-    ? Response.redirect("/user.html", 302)
+    ? Response.redirect("/profile.html", 302)
     : Response.redirect("/index.html", 302);
 });
 
@@ -140,7 +148,7 @@ router.get("/auth/qq/callback", (request, env) => {
 });
 
 // --- 获取当前用户 ---
-router.get("/user", (request) => {
+router.get("/api/user", (request) => {
   const { username, name, email, avatar, provider } = request.user;
   return json({ username, name, email, avatar, provider });
 });
