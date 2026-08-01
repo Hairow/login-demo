@@ -8,6 +8,21 @@ import { SignJWT, jwtVerify } from "jose";
 const SESSION_TTL = 60 * 60 * 24; // 24 小时
 const COOKIE_NAME = "Authorization‌";
 
+/**
+ * 对 token 做 SHA-256 哈希，生成定长的 KV key
+ */
+async function hashToken(token) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * 拼接完整的 KV session key
+ */
+async function sessionKVKey(token) {
+  return `session:${await hashToken(token)}`;
+}
+
 function buildCookieOptions(request) {
   return {
     httpOnly: true,
@@ -39,7 +54,7 @@ export async function createSession(kv, jwtSecret, user) {
     .setExpirationTime(SESSION_TTL)
     .sign(encodeSecret(jwtSecret));
 
-  await kv.put(`session:${token}`, "1", {
+  await kv.put(await sessionKVKey(token), "1", {
     expirationTtl: SESSION_TTL,
   });
 
@@ -71,7 +86,7 @@ export async function getCurrentUser(request, env) {
   }
 
   // 2. KV 校验（支持主动失效）
-  const session = await env.USER_KV.get(`session:${token}`);
+  const session = await env.USER_KV.get(await sessionKVKey(token));
   if (!session) return null;
 
   return payload;
@@ -83,7 +98,7 @@ export async function getCurrentUser(request, env) {
 export async function destroySession(kv, request) {
   const token = getCookie(request, COOKIE_NAME);
   if (token) {
-    await kv.delete(`session:${token}`);
+    await kv.delete(await sessionKVKey(token));
   }
 }
 
