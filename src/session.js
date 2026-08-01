@@ -6,7 +6,7 @@ import { SignJWT, jwtVerify } from "jose";
 // ============================================================
 
 const SESSION_TTL = 60 * 60 * 24; // 24 小时
-const COOKIE_NAME = "Authorization‌";
+const COOKIE_NAME = "session_token";
 
 /**
  * 对 token 做 SHA-256 哈希，生成定长的 KV key
