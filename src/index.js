@@ -30,7 +30,7 @@ async function authGuard(request, env) {
   const user = await getCurrentUser(request, env);
   // 未登录 → 重定向到首页
   if (!user) {
-    return Response.redirect("/index.html", 302);
+    return Response.redirect(new URL("/index.html", request.url).href, 302);
   }
   // 已登录 → 将用户信息挂载到 request，放行
   request.user = user;
