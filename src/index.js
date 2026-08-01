@@ -24,13 +24,18 @@ const PUBLIC_PATHS = new Set([
 // ============================================================
 
 async function authGuard(request, env) {
+  const url = new URL(request.url);
   // 白名单路径直接放行（登录页、回调、健康检查等）
-  if (PUBLIC_PATHS.has(new URL(request.url).pathname)) return;
+  if (PUBLIC_PATHS.has(url.pathname)) return;
 
   const user = await getCurrentUser(request, env);
-  // 未登录 → 重定向到首页
   if (!user) {
-    return Response.redirect(new URL("/index.html", request.url).href, 302);
+    // 只有页面请求才重定向到登录页，接口/静态资源直接 401
+    const isPage = !url.pathname.includes(".") || url.pathname.endsWith(".html");
+    if (isPage) {
+      return Response.redirect(new URL("/index.html", request.url).href, 302);
+    }
+    return new Response(null, { status: 401 });
   }
   // 已登录 → 将用户信息挂载到 request，放行
   request.user = user;
