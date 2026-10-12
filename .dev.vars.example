@@ -9,5 +9,13 @@ GITHUB_CLIENT_SECRET=your_github_client_secret
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
+# 微信开放平台 网站应用凭据 (https://open.weixin.qq.com)
+WECHAT_APP_ID=your_wechat_app_id
+WECHAT_APP_SECRET=your_wechat_app_secret
+
+# QQ互联 网站应用凭据 (https://connect.qq.com)
+QQ_APP_ID=your_qq_app_id
+QQ_APP_KEY=your_qq_app_key
+
 # JWT 签名密钥（请使用随机字符串）
 JWT_SECRET=your_jwt_secret_at_least_32_chars_long

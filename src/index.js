@@ -14,22 +14,41 @@ const PUBLIC_PATHS = new Set([
   "/auth/github/callback",
   "/auth/google",
   "/auth/google/callback",
-  "/auth/logout",
-  "/health",
+  "/auth/wechat",
+  "/auth/wechat/callback",
+  "/auth/qq",
+  "/auth/qq/callback",
+  "/logout",
+  "/health"
 ]);
 
+// 路由自行处理的路径：走完整鉴权（设 request.user），但不拦截
+const THROUGH_PATHS = new Set(["/"]);
+
+// API 路径前缀：未登录时返回 401
+const API_PREFIXES = ["/api"];
+
 // ============================================================
-// 鉴权中间件：非公开路由未登录 -> 302 /index.html
+// 鉴权中间件
 // ============================================================
 
 async function authGuard(request, env) {
-  if (PUBLIC_PATHS.has(new URL(request.url).pathname)) return;
+  const url = new URL(request.url);
+  // 白名单路径直接放行
+  if (PUBLIC_PATHS.has(url.pathname)) return;
 
   const user = await getCurrentUser(request, env);
   if (!user) {
-    return Response.redirect(new URL("/index.html", request.url), 302);
+    // 路由自行处理的路径：放行（user 为 undefined）
+    if (THROUGH_PATHS.has(url.pathname)) return;
+    // API 接口 → 401
+    if (API_PREFIXES.some((p) => url.pathname.startsWith(p))) {
+      return new Response(null, { status: 401 });
+    }
+    // 其他 → 404
+    return new Response(null, { status: 404 });
   }
-  // 将用户挂到 request 上，后续 handler 可直接使用
+  // 已登录 → 将用户信息挂载到 request，放行
   request.user = user;
 }
 
@@ -50,18 +69,20 @@ const router = Router();
 
 // --- 首页 ---
 router.get("/", (request, env) => {
+  // 已登录 → 个人中心页面；未登录 → 登录页
   return request.user
-    ? Response.redirect(new URL("/user", request.url), 302)
-    : Response.redirect(new URL("/index.html", request.url), 302);
-});
-
-// --- 用户信息页（需登录） ---
-router.get("/user", (request) => {
-  const { username, name, email, avatar, provider } = request.user;
-  return json({ username, name, email, avatar, provider });
+    ? Response.redirect("/user", 302)
+    : Response.redirect("/index.html", 302);
 });
 
 // --- OAuth: GitHub ---
+// GitHub OAuth 跳转示例：
+// https://github.com/login/oauth/authorize
+//   ?client_id=xxx
+//   &redirect_uri=https://example.com/auth/github/callback
+//   &response_type=code
+//   &scope=read:user+user:email
+//   &state=<random_32_chars>
 router.get("/auth/github", async (request, env) => {
   const url = await buildAuthUrl("github", env, `${baseUrl(request)}/auth/github/callback`);
   if (!url) return json({ error: "GitHub not configured" }, 500);
@@ -73,6 +94,15 @@ router.get("/auth/github/callback", (request, env) => {
 });
 
 // --- OAuth: Google ---
+// Google OAuth 跳转示例：
+// https://accounts.google.com/o/oauth2/v2/auth
+//   ?client_id=xxx.apps.googleusercontent.com
+//   &redirect_uri=https://example.com/auth/google/callback
+//   &response_type=code
+//   &scope=openid+email+profile
+//   &state=<random_32_chars>
+//   &code_challenge=<PKCE_challenge>
+//   &code_challenge_method=S256
 router.get("/auth/google", async (request, env) => {
   const url = await buildAuthUrl("google", env, `${baseUrl(request)}/auth/google/callback`);
   if (!url) return json({ error: "Google not configured" }, 500);
@@ -83,14 +113,51 @@ router.get("/auth/google/callback", (request, env) => {
   return handleCallback("google", request, env, `${baseUrl(request)}/auth/google/callback`);
 });
 
+// --- OAuth: 微信网站应用扫码登录 ---
+// 微信 OAuth 跳转示例：
+// https://open.weixin.qq.com/connect/qrconnect
+//   ?appid=APPID
+//   &redirect_uri=https://example.com/auth/wechat/callback
+//   &response_type=code
+//   &scope=snsapi_login
+//   &state=<random_32_chars>
+//   #wechat_redirect
+router.get("/auth/wechat", async (request, env) => {
+  const url = await buildAuthUrl("wechat", env, `${baseUrl(request)}/auth/wechat/callback`);
+  if (!url) return json({ error: "WeChat not configured" }, 500);
+  return Response.redirect(url, 302);
+});
+
+router.get("/auth/wechat/callback", (request, env) => {
+  return handleCallback("wechat", request, env, `${baseUrl(request)}/auth/wechat/callback`);
+});
+
+// --- OAuth: QQ互联 ---
+// QQ OAuth 跳转示例：
+// https://graph.qq.com/oauth2.0/authorize
+//   ?response_type=code
+//   &client_id=APPID
+//   &redirect_uri=https://example.com/auth/qq/callback
+//   &scope=get_user_info
+//   &state=<random_32_chars>
+router.get("/auth/qq", async (request, env) => {
+  const url = await buildAuthUrl("qq", env, `${baseUrl(request)}/auth/qq/callback`);
+  if (!url) return json({ error: "QQ not configured" }, 500);
+  return Response.redirect(url, 302);
+});
+
+router.get("/auth/qq/callback", (request, env) => {
+  return handleCallback("qq", request, env, `${baseUrl(request)}/auth/qq/callback`);
+});
+
 // --- 获取当前用户 ---
-router.get("/auth/user", (request) => {
+router.get("/api/user", (request) => {
   const { username, name, email, avatar, provider } = request.user;
   return json({ username, name, email, avatar, provider });
 });
 
 // --- 登出 ---
-router.get("/auth/logout", (request, env) => {
+router.get("/logout", (request, env) => {
   return buildLogoutResponse(env.USER_KV, request);
 });
 
@@ -108,7 +175,8 @@ export default {
   async fetch(request, env, ctx) {
     // 先执行鉴权中间件
     const redirect = await authGuard(request, env);
-    if (redirect) return redirect;
+    // 如果返回响应对象，则直接返回
+    if (redirect instanceof Response) return redirect;
 
     // 路由分发
     return router.fetch(request, env, ctx).catch((e) => {

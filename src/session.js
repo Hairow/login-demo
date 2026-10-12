@@ -1,5 +1,5 @@
 import { parseCookie, stringifySetCookie } from "cookie";
-import { signJWT, verifyJWT } from "./jwt.js";
+import { SignJWT, jwtVerify } from "jose";
 
 // ============================================================
 // Session 生命周期
@@ -8,32 +8,53 @@ import { signJWT, verifyJWT } from "./jwt.js";
 const SESSION_TTL = 60 * 60 * 24; // 24 小时
 const COOKIE_NAME = "session_token";
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: true,
-  sameSite: "lax",
-  path: "/",
-  maxAge: SESSION_TTL,
-};
+/**
+ * 对 token 做 SHA-256 哈希，生成定长的 KV key
+ */
+async function hashToken(token) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * 拼接完整的 KV session key
+ */
+async function sessionKVKey(token) {
+  return `session:${await hashToken(token)}`;
+}
+
+function buildCookieOptions(request) {
+  return {
+    httpOnly: true,
+    secure: new URL(request.url).protocol === "https:",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_TTL,
+  };
+}
 
 /**
  * 创建 session，写入 KV 并返回 JWT token
  */
-export async function createSession(kv, jwtSecret, user) {
-  const token = await signJWT(
-    {
-      sub: `${user.provider}:${user.providerId}`,
-      username: user.username,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      provider: user.provider,
-    },
-    jwtSecret,
-    "24h"
-  );
+function encodeSecret(secret) {
+  return new TextEncoder().encode(secret);
+}
 
-  await kv.put(`session:${token}`, JSON.stringify(user), {
+export async function createSession(kv, jwtSecret, user) {
+  const token = await new SignJWT({
+    sub: `${user.provider}:${user.providerId}`,
+    username: user.username,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar,
+    provider: user.provider,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(SESSION_TTL)
+    .sign(encodeSecret(jwtSecret));
+
+  await kv.put(await sessionKVKey(token), "1", {
     expirationTtl: SESSION_TTL,
   });
 
@@ -56,11 +77,16 @@ export async function getCurrentUser(request, env) {
   if (!token) return null;
 
   // 1. JWT 校验
-  const payload = await verifyJWT(token, env.JWT_SECRET);
-  if (!payload) return null;
+  let payload;
+  try {
+    const result = await jwtVerify(token, encodeSecret(env.JWT_SECRET));
+    payload = result.payload;
+  } catch {
+    return null;
+  }
 
   // 2. KV 校验（支持主动失效）
-  const session = await env.USER_KV.get(`session:${token}`);
+  const session = await env.USER_KV.get(await sessionKVKey(token));
   if (!session) return null;
 
   return payload;
@@ -72,31 +98,22 @@ export async function getCurrentUser(request, env) {
 export async function destroySession(kv, request) {
   const token = getCookie(request, COOKIE_NAME);
   if (token) {
-    await kv.delete(`session:${token}`);
+    await kv.delete(await sessionKVKey(token));
   }
 }
 
 /**
  * 登录成功：设置 session cookie
  */
-export function sessionCookie(token) {
-  return stringifySetCookie({
-    name: COOKIE_NAME,
-    value: token,
-    ...COOKIE_OPTIONS,
-  });
+export function sessionCookie(token, request) {
+  return stringifySetCookie({ name: COOKIE_NAME, value: token, ...buildCookieOptions(request) });
 }
 
 /**
  * 登出：清除 session cookie
  */
-export function clearCookie() {
-  return stringifySetCookie({
-    name: COOKIE_NAME,
-    value: "",
-    ...COOKIE_OPTIONS,
-    maxAge: 0,
-  });
+export function clearCookie(request) {
+  return stringifySetCookie({ name: COOKIE_NAME, value: "", ...buildCookieOptions(request), maxAge: 0 });
 }
 
 /**
@@ -108,7 +125,7 @@ export async function buildLogoutResponse(kv, request) {
     status: 302,
     headers: {
       Location: "/",
-      "Set-Cookie": clearCookie(),
+      "Set-Cookie": clearCookie(request),
     },
   });
 }

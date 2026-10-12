@@ -1,16 +1,26 @@
 {
-	"$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "login-demo",
 	"main": "src/index.js",
 	"compatibility_date": "2025-01-01",
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
+	"observability": {
+		"logs": {
+			"enabled": true,
+			"invocation_logs": true
+		}
+	},
 	"vars": {
 		"GITHUB_CLIENT_ID": "",
-		"GITHUB_REDIRECT_URI": "http://localhost:8787/auth/github/callback",
+		"GITHUB_CLIENT_SECRET": "",
 		"GOOGLE_CLIENT_ID": "",
-		"GOOGLE_REDIRECT_URI": "http://localhost:8787/auth/google/callback",
+		"GOOGLE_CLIENT_SECRET": "",
+		"WECHAT_APP_ID": "",
+		"WECHAT_APP_SECRET": "",
+		"QQ_APP_ID": "",
+		"QQ_APP_KEY": "",
 		"JWT_SECRET": ""
 	},
 	"assets": {

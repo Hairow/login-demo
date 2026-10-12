@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "gen-secret": "node scripts/gen-jwt-secret.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

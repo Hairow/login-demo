@@ -1,4 +1,6 @@
 import { GitHub, Google } from "arctic";
+import { WeChat } from "./auth.wechat.js";
+import { QQ } from "./auth.qq.js";
 import { nanoid } from "nanoid"
 import { createSession, sessionCookie } from "./session.js";
 
@@ -6,6 +8,17 @@ import { createSession, sessionCookie } from "./session.js";
 // OAuth 2.0 用户信息获取（arctic 不处理此步）
 // ============================================================
 
+async function retry(fn, times = 3) {
+  for (let i = 0; i < times; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === times - 1) throw err;
+    }
+  }
+}
+
+// ---------- GitHub ----------
 async function fetchGitHubUser(accessToken) {
   const [userResp, emailsResp] = await Promise.all([
     fetch("https://api.github.com/user", {
@@ -36,6 +49,7 @@ async function fetchGitHubUser(accessToken) {
   };
 }
 
+// ---------- Google ----------
 async function fetchGoogleUser(accessToken) {
   const resp = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -53,6 +67,53 @@ async function fetchGoogleUser(accessToken) {
   };
 }
 
+// ---------- 微信 ----------
+async function fetchWechatUser(accessToken, openid) {
+  const resp = await fetch(
+    `https://api.weixin.qq.com/sns/userinfo?access_token=${encodeURIComponent(accessToken)}&openid=${encodeURIComponent(openid)}&lang=zh_CN`
+  );
+  if (!resp.ok) throw new Error("Failed to fetch WeChat user");
+  const data = await resp.json();
+  if (data.errcode) throw new Error(`WeChat API error: ${data.errmsg}`);
+
+  return {
+    provider: "wechat",
+    providerId: data.unionid || data.openid,
+    username: data.nickname,
+    name: data.nickname,
+    email: null,                     // 微信不返回邮箱
+    avatar: data.headimgurl,
+  };
+}
+
+// ---------- QQ ----------
+async function fetchQQOpenId(accessToken) {
+  const resp = await fetch(
+    `https://graph.qq.com/oauth2.0/me?access_token=${encodeURIComponent(accessToken)}&fmt=json`
+  );
+  if (!resp.ok) throw new Error("Failed to fetch QQ openid");
+  const data = await resp.json();
+  if (data.error) throw new Error(`QQ openid error: ${data.error_description || data.error}`);
+  return { openid: data.openid, unionid: data.unionid };
+}
+async function fetchQQUser(accessToken, appId, openid) {
+  const resp = await fetch(
+    `https://graph.qq.com/user/get_user_info?access_token=${encodeURIComponent(accessToken)}&oauth_consumer_key=${encodeURIComponent(appId)}&openid=${encodeURIComponent(openid)}`
+  );
+  if (!resp.ok) throw new Error("Failed to fetch QQ user");
+  const data = await resp.json();
+  if (data.ret !== 0) throw new Error(`QQ API error: ${data.msg}`);
+
+  return {
+    provider: "qq",
+    providerId: data.unionid || openid,
+    username: data.nickname,
+    name: data.nickname,
+    email: null,                     // QQ 不返回邮箱
+    avatar: data.figureurl_qq_2 || data.figureurl_2 || data.figureurl_qq_1 || data.figureurl_1,
+  };
+}
+
 // ============================================================
 // OAuth 流程（token 交换由 arctic 处理）
 // ============================================================
@@ -63,7 +124,7 @@ const OAUTH_STATE_TTL = 600; // 10 分钟
  * 构建授权 URL（arctic 生成，state/PKCE 存入 KV）
  */
 export async function buildAuthUrl(provider, env, redirectUri) {
-  const state = nanoid(32);
+  const state = nanoid(32);// 生成一个随机的 state 值，用于验证 OAuth 回调中的 state 参数
   await env.USER_KV.put(`oauth:state:${state}`, provider, { expirationTtl: OAUTH_STATE_TTL });
 
   if (provider === "github") {
@@ -80,6 +141,18 @@ export async function buildAuthUrl(provider, env, redirectUri) {
     return google.createAuthorizationURL(state, codeVerifier, ["openid", "email", "profile"]).toString();
   }
 
+  // ---------- 微信网站应用扫码登录 ----------
+  if (provider === "wechat") {
+    const wechat = new WeChat(env.WECHAT_APP_ID, env.WECHAT_APP_SECRET, redirectUri);
+    return wechat.createAuthorizationURL(state).toString();
+  }
+
+  // ---------- QQ互联 ----------
+  if (provider === "qq") {
+    const qq = new QQ(env.QQ_APP_ID, env.QQ_APP_KEY, redirectUri);
+    return qq.createAuthorizationURL(state).toString();
+  }
+
   return null;
 }
 
@@ -88,8 +161,8 @@ export async function buildAuthUrl(provider, env, redirectUri) {
  */
 export async function handleCallback(provider, request, env, redirectUri) {
   const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
+  const code = url.searchParams.get("code");//OAuth 回调 URL 中的授权码，由第三方在用户授权后通过 URL 参数传回
+  const state = url.searchParams.get("state");//OAuth 回调 URL 中的 state 参数，由第三方在用户授权后通过 URL 参数原样传回
   const oauthError = url.searchParams.get("error");
 
   if (oauthError) {
@@ -128,9 +201,14 @@ export async function handleCallback(provider, request, env, redirectUri) {
         });
       }
       await env.USER_KV.delete(`oauth:pkce:${state}`);
-
       const google = new Google(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, redirectUri);
       tokens = await google.validateAuthorizationCode(code, codeVerifier);
+    } else if (provider === "wechat") {
+      const wechat = new WeChat(env.WECHAT_APP_ID, env.WECHAT_APP_SECRET, redirectUri);
+      tokens = await wechat.validateAuthorizationCode(code);
+    } else if (provider === "qq") {
+      const qq = new QQ(env.QQ_APP_ID, env.QQ_APP_KEY, redirectUri);
+      tokens = await qq.validateAuthorizationCode(code);
     } else {
       return new Response(JSON.stringify({ error: "unsupported provider" }), {
         status: 400,
@@ -150,9 +228,21 @@ export async function handleCallback(provider, request, env, redirectUri) {
   // 获取用户信息
   let user;
   try {
-    user = provider === "github"
-      ? await fetchGitHubUser(tokens.accessToken())
-      : await fetchGoogleUser(tokens.accessToken());
+    if (provider === "github") {
+      user = await retry(() => fetchGitHubUser(tokens.accessToken()));
+    } else if (provider === "google") {
+      user = await retry(() => fetchGoogleUser(tokens.accessToken()));
+    } else if (provider === "wechat") {
+      user = await retry(() => fetchWechatUser(tokens.accessToken(), tokens.openid()));
+    } else if (provider === "qq") {
+      // QQ 需要先拿 openid，再取用户信息
+      const { openid, unionid } = await retry(() => fetchQQOpenId(tokens.accessToken()));
+      user = await retry(() => fetchQQUser(tokens.accessToken(), env.QQ_APP_ID, openid));
+      // 合并 unionid（fetchQQOpenId 返回的 unionid 可能更新）
+      if (unionid) user.providerId = unionid;
+    } else {
+      throw new Error(`unsupported provider: ${provider}`);
+    }
   } catch (err) {
     return new Response(JSON.stringify({ error: "failed to fetch user", detail: err.message }), {
       status: 502,
@@ -167,7 +257,7 @@ export async function handleCallback(provider, request, env, redirectUri) {
     status: 302,
     headers: {
       Location: "/",
-      "Set-Cookie": sessionCookie(token),
+      "Set-Cookie": sessionCookie(token, request),
     },
   });
 }
