@@ -7,6 +7,9 @@ import { getCurrentUser, buildLogoutResponse } from "./session.js";
 // ============================================================
 
 const PUBLIC_PATHS = new Set([
+  "/",
+  "/index.html",
+  "/favicon.ico",
   "/auth/github",
   "/auth/github/callback",
   "/auth/google",
@@ -24,7 +27,7 @@ async function authGuard(request, env) {
 
   const user = await getCurrentUser(request, env);
   if (!user) {
-    return Response.redirect("/index.html", 302);
+    return Response.redirect(new URL("/index.html", request.url), 302);
   }
   // 将用户挂到 request 上，后续 handler 可直接使用
   request.user = user;
@@ -48,8 +51,8 @@ const router = Router();
 // --- 首页 ---
 router.get("/", (request, env) => {
   return request.user
-    ? Response.redirect("/user", 302)
-    : Response.redirect("/index.html", 302);
+    ? Response.redirect(new URL("/user", request.url), 302)
+    : Response.redirect(new URL("/index.html", request.url), 302);
 });
 
 // --- 用户信息页（需登录） ---

@@ -1,4 +1,4 @@
-import cookie from "cookie";
+import { parseCookie, stringifySetCookie } from "cookie";
 import { signJWT, verifyJWT } from "./jwt.js";
 
 // ============================================================
@@ -45,7 +45,7 @@ export async function createSession(kv, jwtSecret, user) {
  */
 function getCookie(request, name) {
   const header = request.headers.get("Cookie") || "";
-  return cookie.parse(header)[name] || null;
+  return parseCookie(header)[name] || null;
 }
 
 /**
@@ -80,14 +80,23 @@ export async function destroySession(kv, request) {
  * 登录成功：设置 session cookie
  */
 export function sessionCookie(token) {
-  return cookie.serialize(COOKIE_NAME, token, COOKIE_OPTIONS);
+  return stringifySetCookie({
+    name: COOKIE_NAME,
+    value: token,
+    ...COOKIE_OPTIONS,
+  });
 }
 
 /**
  * 登出：清除 session cookie
  */
 export function clearCookie() {
-  return cookie.serialize(COOKIE_NAME, "", { ...COOKIE_OPTIONS, maxAge: 0 });
+  return stringifySetCookie({
+    name: COOKIE_NAME,
+    value: "",
+    ...COOKIE_OPTIONS,
+    maxAge: 0,
+  });
 }
 
 /**
